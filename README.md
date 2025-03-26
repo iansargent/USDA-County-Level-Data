@@ -1,7 +1,7 @@
 # USDA-County-Level-Data
 
 ## Project Overview
-This project extracting, cleaning, and querying data from the USDA Economic Research Service database using R and SQL
+This project uses R and SQL to extract, clean, and query data from the USDA Economic Research Service database. The final dataset contains three tables covering employment, poverty, and population at the county level. The analysis highlights economic and demographic trends across U.S. counties.
 
 ### Skills Developed
 
