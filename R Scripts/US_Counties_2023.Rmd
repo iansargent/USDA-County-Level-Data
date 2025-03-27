@@ -1,0 +1,232 @@
+---
+title: "US County Level Data"
+author: "Ian Sargent"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r echo = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+### Downloading Necessary Packages
+
+```{r setup}
+
+library(tidyverse)
+
+```
+
+
+### Loading the Original USDA Datasets
+
+```{r}
+
+pop <- read.csv("PopulationEstimates.csv")
+pov <- read.csv("Poverty2023.csv")
+emp <- read.csv("Unemployment2023.csv")
+
+```
+
+
+### Establishing a Vector of State Names for Filtering Purposes
+
+```{r}
+
+statewide <- c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
+
+```
+
+
+### Cleaning the **Population** Dataset
+
+```{r}
+
+# Retrieving the 2020 census population for each county
+census_pop_2020 <- 
+  # OG data
+  pop |> 
+  # I want this statistic and no statewide or nationwide data
+  filter(Attribute == "CENSUS_2020_POP" & !Area_Name %in% c(statewide, "United States")) |> 
+  # Renaming the column to be the stat
+  rename(
+    Census_Pop_2020 = Value,
+    County = Area_Name
+  ) |> 
+  # Since they are all constant, I can deselect the attribute column
+  select(-Attribute)
+
+
+# Retrieving the 2023 population estimates for each county
+pop_estimates_2023 <- 
+  pop |> 
+  # I want this statistic and no statewide or nationwide data
+  filter(Attribute == "POP_ESTIMATE_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  # Renaming the column to be the stat
+  rename(
+    Population_Estimate_2023 = Value,
+    County = Area_Name
+  ) |> 
+  # Since they are all constant, I can deselect the attribute column
+  select(-Attribute)
+
+
+# Retrieving the number of births in each county
+pop_births_2023 <- 
+  # OG data
+  pop |> 
+  # I want this statistic and no statewide or nationwide data
+  filter(Attribute == "BIRTHS_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  # Renaming the column to be the stat
+  rename(
+    Births_2023 = Value,
+    County = Area_Name
+  ) |> 
+  # Since they are all constant, I can deselect the attribute column
+  select(-Attribute)
+
+
+# Retrieving the number of deaths in each county
+pop_deaths_2023 <- 
+  # OG data
+  pop |> 
+  # I want this statistic and no statewide or nationwide data
+  filter(Attribute == "DEATHS_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  # Renaming the column to be the stat
+  rename(
+    Deaths_2023 = Value,
+    County = Area_Name
+  ) |> 
+  # Since they are all constant, I can deselect the attribute column
+  select(-Attribute)
+
+# Joining each cleaned dataset into one population dataset
+population_data <- 
+  # Start with the first one
+  census_pop_2020 |> 
+  # Deselect irrelevant columns
+  select(-FIPStxt) |> 
+  # Join the rest of the datasets on State and County columns (Combination is Unique)
+  inner_join(pop_estimates_2023 |> select(-FIPStxt), by = c("State", "County")) |> 
+  inner_join(pop_births_2023 |> select(-FIPStxt), by = c("State", "County")) |> 
+  inner_join(pop_deaths_2023 |> select(-FIPStxt), by = c("State", "County")) 
+
+```
+
+
+### Cleaning the Poverty Dataset
+
+```{r}
+
+# Following the steps above
+
+pov_age0to17_2023 <- 
+  pov |> 
+  filter(Attribute == "POV017_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Poverty_0to17_2023 = Value,
+    County = Area_Name,
+    State = Stabr
+  ) |> 
+  select(-Attribute)
+
+
+pov_all_2023 <- 
+  pov |> 
+  filter(Attribute == "POVALL_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Poverty_All_Ages_2023 = Value,
+    County = Area_Name,
+    State = Stabr
+  ) |> 
+  select(-Attribute)
+
+
+pov_pct_all_2023 <- 
+  pov |> 
+  filter(Attribute == "PCTPOVALL_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Poverty_Pct_All_Ages_2023 = Value,
+    County = Area_Name,
+    State = Stabr
+  ) |> 
+  select(-Attribute)
+
+rural_urban_code_2023 <- 
+  pov |> 
+  filter(Attribute == "Rural_Urban_Continuum_Code_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Rural_Urban_Code_2023 = Value,
+    County = Area_Name,
+    State = Stabr
+  ) |> 
+  select(-Attribute)
+
+
+poverty_data <- 
+  pov_all_2023 |> 
+  select(State, County, Poverty_All_Ages_2023) |> 
+  inner_join(pov_pct_all_2023 |> select(-FIPS_Code), by = c("State", "County")) |> 
+  inner_join(pov_age0to17_2023 |> select(-FIPS_Code), by = c("State", "County")) |> 
+  inner_join(rural_urban_code_2023 |> select(-FIPS_Code), by = c("State", "County")) 
+
+```
+
+
+### Cleaning the Employment Dataset
+
+```{r}
+
+# Following the steps above
+
+labor_force_2023 <- 
+  emp |> 
+  filter(Attribute == "Civilian_labor_force_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Civ_Labor_Force_2023 = Value,
+    County = Area_Name
+  ) |> 
+  select(-Attribute)
+
+
+house_income_2023 <- 
+  emp |> 
+  filter(Attribute == "Median_Household_Income_2022" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Med_Household_Income_2023 = Value,
+    County = Area_Name
+  ) |> 
+  select(-Attribute)
+
+
+unemployment_rate_2023 <- 
+  emp |> 
+  filter(Attribute == "Unemployment_rate_2023" & !Area_Name %in% c(statewide, "United States")) |> 
+  rename(
+    Unemployment_Rate_2023 = Value,
+    County = Area_Name
+  ) |> 
+  select(-Attribute)
+
+
+employment_data <- 
+  labor_force_2023 |> 
+  select(State, County, Civ_Labor_Force_2023) |> 
+  inner_join(house_income_2023 |> select(State, County, Med_Household_Income_2023), by = c("State", "County")) |> 
+  inner_join(unemployment_rate_2023 |> select(State, County, Unemployment_Rate_2023), by = c("State", "County")) 
+
+```
+
+
+### Writing the Final Datasets to .csv Files
+
+```{r}
+
+write.csv(population_data, file = "population.csv")
+write.csv(poverty_data, file = "poverty.csv")
+write.csv(employment_data, file = "employment.csv")
+
+```
